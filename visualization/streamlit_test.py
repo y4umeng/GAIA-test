@@ -1,5 +1,4 @@
 import streamlit as st
-import graphviz
 import pandas as pd
 
 def simple_traj(row): 
