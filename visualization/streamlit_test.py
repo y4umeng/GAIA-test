@@ -39,6 +39,6 @@ def create_graph(data_row):
     # st.graphviz_chart(graph) 
     return 
 
-file_path = '/Users/yau/Documents/research/GAIA-test/output/validation/gpt_4o_mini_test.jsonl' 
+file_path = '../output/validation/gpt_4o_mini_test.jsonl' 
 jsonObj = pd.read_json(path_or_buf=file_path, lines=True)
 create_graph(jsonObj.head(1))
