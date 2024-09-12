@@ -210,7 +210,8 @@ async def answer_questions(
             if example["question"] in results_df["question"].unique():
                 continue
             if skip_hard_questions:
-                if example["question"] in HARD_QUESTIONS:
+                if example["task"] != "1" or example["question"] in HARD_QUESTIONS:
+                    print("Skipping medium/hard question.")
                     continue
         if "If this whole pint is made up of ice cream" in example["question"]:
             continue
@@ -292,13 +293,14 @@ Here is the task:
             }
         )
         results.append(result)
-
+        print(f"OUTPUTTING RESULTS TO {output_path}")
         with open(output_path, 'w') as f:
             for d in results:
                 json.dump(d, f, default=serialize_agent_error)
                 f.write('\n')  # add a newline for JSONL format
         # except Exception as e:
         #     print("EXCEPTION!!!!=================\nFIND THE EXCEPTION LOG BELOW:\n", e)
+  
     return results
 
 

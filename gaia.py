@@ -8,7 +8,7 @@ import datasets
 from huggingface_hub import login
 
 from transformers.agents import ReactCodeAgent, ReactJsonAgent, HfEngine
-from transformers.agents.llm_engine import DEFAULT_CODEAGENT_REGEX_GRAMMAR, DEFAULT_JSONAGENT_REGEX_GRAMMAR
+# from transformers.agents.llm_engine import DEFAULT_CODEAGENT_REGEX_GRAMMAR, DEFAULT_JSONAGENT_REGEX_GRAMMAR
 from transformers.agents.agents import DEFAULT_REACT_JSON_SYSTEM_PROMPT
 from transformers.agents.default_tools import Tool, PythonInterpreterTool
 from transformers.agents.llm_engine import MessageRole
@@ -26,7 +26,7 @@ from scripts.tools.mdconvert import MarkdownConverter
 from scripts.reformulator import prepare_response
 from scripts.run_agents import answer_questions
 from scripts.tools.visual_qa import VisualQATool, VisualQAGPT4Tool
-from scripts.llm_engines import OpenAIEngine, AnthropicEngine
+from scripts.llm_engines import OpenAIEngine, AnthropicEngine, OllamaEngine, OllamaEngine2
 load_dotenv(override=True)
 login(os.getenv("HUGGINGFACEHUB_API_TOKEN"))
 
@@ -41,23 +41,23 @@ USE_JSON = False
 SET = "validation"
 
 # proprietary_llm_engine = AnthropicEngine(use_bedrock=True)
-proprietary_llm_engine = OpenAIEngine()
+proprietary_llm_engine =  OpenAIEngine()
 
 url_llama3 = "meta-llama/Meta-Llama-3-70B-Instruct"
 url_qwen2 = "https://azbwihkodyacoe54.us-east-1.aws.endpoints.huggingface.cloud"
 url_command_r = "CohereForAI/c4ai-command-r-plus"
 url_gemma2 = "google/gemma-2-27b-it"
 url_custom_llama = "https://lki4zbjpelxely5v.us-east-1.aws.endpoints.huggingface.cloud/"
-url_custom_llama = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+# url_custom_llama = "meta-llama/Meta-Llama-3.1-70B-Instruct"
 
-URL_OS_MODEL = url_custom_llama
+URL_OS_MODEL = url_qwen2 
 ### LOAD EVALUATION DATASET
 
-eval_ds = datasets.load_dataset("gaia-benchmark/GAIA", "2023_all")[SET]
+eval_ds = datasets.load_dataset("gaia-benchmark/GAIA", "2023_all", trust_remote_code=True)[SET]
 eval_ds = eval_ds.rename_columns(
     {"Question": "question", "Final answer": "true_answer", "Level": "task"}
 )
-
+# eval_ds = eval_ds.shuffle(seed=88)
 
 def preprocess_file_paths(row):
     if len(row["file_name"]) > 0:
@@ -66,14 +66,15 @@ def preprocess_file_paths(row):
 
 
 eval_ds = eval_ds.map(preprocess_file_paths)
-
+# eval_ds = eval_ds[:2]
+# print("EVAL DATASET: ", eval_ds)
 eval_df = pd.DataFrame(eval_ds)
 print("Loaded evaluation dataset:")
 print(pd.Series(eval_ds["task"]).value_counts())
 
 
 websurfer_llm_engine = HfEngine(
-    model=url_custom_llama,
+    model=URL_OS_MODEL,
 )  # chosen for its high context length
 
 # Replace with OAI if needed
@@ -313,9 +314,12 @@ async def call_transformers(agent, question: str, **kwargs) -> str:
 results = asyncio.run(answer_questions(
     eval_ds,
     react_agent,
-    "react_code_gpt4o_6_aug_structuredplanning_nogrammar",
+    "gpt_4o_mini_eval",
     output_folder=f"{OUTPUT_DIR}/{SET}",
     agent_call_function=call_transformers,
     visual_inspection_tool = VisualQAGPT4Tool(),
     text_inspector_tool = ti_tool,
+    skip_hard_questions=False
 ))
+
+print("RESULTS: ", results)

@@ -2,13 +2,13 @@ from transformers.agents.llm_engine import MessageRole, get_clean_message_list
 import os
 from openai import OpenAI
 from anthropic import Anthropic, AnthropicBedrock
-
+import ollama
 openai_role_conversions = {
     MessageRole.TOOL_RESPONSE: MessageRole.USER,
 }
 
 class OpenAIEngine:
-    def __init__(self, model_name="gpt-4o"):
+    def __init__(self, model_name="gpt-4o-mini"):
         self.model_name = model_name
         self.client = OpenAI(
             api_key=os.getenv("OPENAI_API_KEY"),
@@ -71,6 +71,54 @@ class AnthropicEngine:
                 full_response_text += content_block.text
         return full_response_text
 
+class OllamaEngine:
+    def __init__(self, model_name="llama3.1"):
+        self.model_name = model_name
+        self.client = OpenAI(
+            base_url = 'http://localhost:11434/v1',
+            api_key='ollama', # required, but unused
+        )
+
+    def __call__(self, messages, stop_sequences=[], grammar=None, temp=0.5):
+        messages = get_clean_message_list(messages, role_conversions=openai_role_conversions)
+        print(f"~~~~~Calling OLLAMA~~~~~")
+        print(messages)
+        print("\nSTOP SEQ:")
+        print(stop_sequences)
+        print("~~~~~~~~~~~~~")
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            stop=stop_sequences,
+            temperature=temp, # https://github.com/ollama/ollama/issues/6640#issuecomment-2330311462
+            response_format=grammar
+        )
+        print("RESULT::")
+        print(response.choices[0].message.content)
+        print("~~~~END RESULT~~~~~~")
+        return response.choices[0].message.content
+
+llama_role_conversions = openai_role_conversions
+
+class OllamaEngine2:
+    def __init__(self, model_name="llama3.1"):
+        self.model_name = model_name
+        self.client = ollama
+
+    def __call__(self, messages, stop_sequences=[]) -> str:
+        # Get clean message list
+        messages = get_clean_message_list(messages, role_conversions=llama_role_conversions)
+
+        # Get LLM output
+        response = self.client.chat(model=self.model_name, messages=messages)['message']['content']
+        # print(f"OUTPUT PRE PARSE:\n\n{response}\n\n")
+        # Remove stop sequences from LLM output
+        for stop_seq in stop_sequences:
+            if response[-len(stop_seq) :] == stop_seq:
+                response = response[: -len(stop_seq)]
+        # print(f"OUTPUT POST PARSE:\n\n{response}\n\n")
+        # if not response: print(f"WHERES THE RESPONSE?? MESSAGES:\n\n{messages}\n\n")
+        return response
 
 # import boto3
 # import json
